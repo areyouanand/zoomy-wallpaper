@@ -42,7 +42,11 @@
    - `HybridWallpaperEngine` tracks `surfaceLockedByCanvas` per `SurfaceHolder` lifecycle (`onSurfaceCreated` / `onSurfaceDestroyed`) and never attaches `MediaPlayer` to an already Canvas-bound surface.
 3. **Do Not Use `WallpaperService.Engine.onZoomChanged` to Clamp Minimum Blur**
    - On ColorOS / OxygenOS (`CPH2841`), the stock launcher reports `onZoomChanged(1.0f)` and does not reset it to `0.0f` on the home screen. Using `launcherDepthZoom` to clamp `blurRemaining` leaves the wallpaper permanently blurred on OxygenOS. Keep `blurRemaining` driven strictly by the animation progress timer (`rawT` from `0f` to `1f`), and always finish `doFrame` with `drawRealTimeFrame(1f)`.
-4. **ADB Install on ColorOS / OxygenOS**
+4. **Zero-Latency iOS Unlock Timing, Unified Spring Curve & Perceptual Blur Mip-Levels (`ZoomyWallpaperService.kt`)**
+   - **Never block `onVisibilityChanged(true)` on `KeyguardManager.isKeyguardLocked`:** On OxygenOS/ColorOS when bound as `mWhich = 3` (`FLAG_SYSTEM | FLAG_LOCK`), `onVisibilityChanged(true)` fires at `t = 0 ms` while `isKeyguardLocked` stays `true` for another ~300 ms during the lockscreen fade-out. Blocking on `isKeyguardLocked` freezes the wallpaper in blur for 300 ms. Instead, start immediately on `onVisibilityChanged(true)` (drawing Frame `0` synchronously) and use a `650 ms` deduplication window (`lastAnimStartUptimeMs`) so the trailing `KeyguardLockedStateListener(false)` / `Intent.ACTION_USER_PRESENT` callback does not reset a running unlock animation mid-flight.
+   - **Unified Blur + Zoom Curve (`(0.16, 1.0, 0.30, 1.0)`):** Mode 1 uses Apple's iOS spring-out cubic Bézier `(0.16, 1.0, 0.30, 1.0)` (`Y1 = 1.0`, eliminating initial S-curve hesitation) and drives **both** `totalInset` (zoom) and `blurRemaining` in 1:1 lockstep so unblurring and zooming launch and settle together.
+   - **Perceptual Mip-Level Spacing (`(i / 9)^2.2`):** The Real-Time Engine precomputes 10 perceptually spaced blur mip-levels (`r = [0, 1, 5, 11, 21, 35, 53, 76, 106, 180]` for `startBlur = 180`) rather than linear radii (`51..180` all look like an opaque color wash where zoom motion is invisible).
+5. **ADB Install on ColorOS / OxygenOS**
    - If `adb install` hangs waiting for Play Protect verifier timeout (`com.google.android.verifier`), keep `adb shell settings put global verifier_verify_adb_installs 0` set or use `adb push ... /data/local/tmp/zoomy.apk && adb shell cmd package install -r /data/local/tmp/zoomy.apk`.
 
 ---

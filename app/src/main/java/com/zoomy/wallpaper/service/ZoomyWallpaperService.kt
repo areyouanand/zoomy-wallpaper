@@ -32,6 +32,7 @@ import com.zoomy.wallpaper.util.StackBlurEngine
 import java.io.File
 import java.util.concurrent.Executors
 import kotlin.math.max
+import kotlin.math.pow
 import kotlin.math.roundToInt
 
 class ZoomyWallpaperService : WallpaperService() {
@@ -68,31 +69,36 @@ class ZoomyWallpaperService : WallpaperService() {
         private var canvasRenderer: WallpaperCanvasRenderer? = null
         private var isAnimatingRealTime = false
         private var animStartTimeMs = 0L
-        private var animDurationMs = 1200L
+        private var animDurationMs = 1000L
         private var currentAnimProgress = 1f // 0f = start of unlock, 1f = settled sharp home screen
         private var launcherXOffset = 0.5f   // 0f..1f from onOffsetsChanged
 
-        // Unlock detection state for Trigger Mode = 1 (Device Unlock Only)
+        // Cached interpolator for zero per-frame allocations
+        private var cachedCurveInterpolator: Interpolator? = null
+
+        // Fast unlock detection & deduplication state
         private var wasKeyguardLocked = false
+        private var lastAnimStartUptimeMs = 0L
         private var receiverRegistered = false
+        private var keyguardListener: Any? = null
 
         private val unlockReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 when (intent?.action) {
                     Intent.ACTION_SCREEN_OFF -> {
                         wasKeyguardLocked = true
+                        handler.removeCallbacksAndMessages(null)
+                        stageStartFrame()
                     }
                     Intent.ACTION_USER_PRESENT -> {
-                        wasKeyguardLocked = false
-                        if (isVisible) {
-                            schedulePlayAnimation(forceFullAnimation = true)
-                        }
+                        onKeyguardUnlockedNow()
                     }
                 }
             }
         }
 
         private val startAnimationRunnable = Runnable {
+            lastAnimStartUptimeMs = SystemClock.uptimeMillis()
             if (shouldUseRealTimeCanvas()) {
                 startRealTimeAnimation()
             } else {
@@ -102,27 +108,20 @@ class ZoomyWallpaperService : WallpaperService() {
 
         private val pauseAnimationRunnable = Runnable {
             val km = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
-            if (km?.isKeyguardLocked == true) {
+            val lockedNow = km?.isKeyguardLocked == true
+            if (lockedNow) {
                 wasKeyguardLocked = true
             }
-            if (shouldUseRealTimeCanvas()) {
+            if (lockedNow || prefs.isRewindOnHide()) {
+                stageStartFrame()
+            } else if (shouldUseRealTimeCanvas()) {
                 stopRealTimeAnimation()
-                if (prefs.isRewindOnHide()) {
-                    currentAnimProgress = 0f
-                    drawRealTimeFrame(0f)
-                } else {
-                    currentAnimProgress = 1f
-                    drawRealTimeFrame(1f)
-                }
+                currentAnimProgress = 1f
+                drawRealTimeFrame(1f)
             } else {
                 val mp = mediaPlayer ?: return@Runnable
                 try {
-                    if (prefs.isRewindOnHide()) {
-                        mp.pause()
-                        mp.seekTo(0)
-                    } else {
-                        mp.pause()
-                    }
+                    mp.pause()
                 } catch (_: Throwable) {
                 }
                 isPausedForVisibility = true
@@ -133,11 +132,66 @@ class ZoomyWallpaperService : WallpaperService() {
             return prefs.getEngineMode() == 0 || surfaceLockedByCanvas
         }
 
+        /**
+         * Pre-stages Frame 0 (full start blur + start zoom, or video frame 0) when screen turns off or hides
+         * so the wallpaper surface is already holding the blurred/zoomed state before the next unlock.
+         */
+        private fun stageStartFrame() {
+            if (shouldUseRealTimeCanvas()) {
+                stopRealTimeAnimation()
+                currentAnimProgress = 0f
+                drawRealTimeFrame(0f)
+            } else {
+                val mp = mediaPlayer ?: return
+                try {
+                    mp.pause()
+                    mp.seekTo(0)
+                } catch (_: Throwable) {
+                }
+                isPausedForVisibility = true
+            }
+        }
+
+        /**
+         * Called when keyguard transitions from locked -> unlocked.
+         * Deduplicates against onVisibilityChanged(true) if the animation already started < 650ms ago
+         * during a direct fingerprint unlock.
+         */
+        private fun onKeyguardUnlockedNow() {
+            val sinceLastStart = SystemClock.uptimeMillis() - lastAnimStartUptimeMs
+            wasKeyguardLocked = false
+            if (sinceLastStart in 0L..650L) {
+                return
+            }
+            if (isVisible) {
+                schedulePlayAnimation(forceFullAnimation = true)
+            }
+        }
+
         override fun onCreate(surfaceHolder: SurfaceHolder?) {
             super.onCreate(surfaceHolder)
             setTouchEventsEnabled(false)
             setOffsetNotificationsEnabled(true)
             PrefsStore.getInstance().sp.registerOnSharedPreferenceChangeListener(this)
+
+            val km = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+            wasKeyguardLocked = km?.isKeyguardLocked == true
+
+            // Register fast Binder-based KeyguardLockedStateListener on Android 13+ (API 33+)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && km != null) {
+                try {
+                    val listener = KeyguardManager.KeyguardLockedStateListener { isKeyguardLocked ->
+                        if (isKeyguardLocked) {
+                            wasKeyguardLocked = true
+                        } else {
+                            onKeyguardUnlockedNow()
+                        }
+                    }
+                    km.addKeyguardLockedStateListener(mainExecutor, listener)
+                    keyguardListener = listener
+                } catch (_: Throwable) {
+                }
+            }
 
             try {
                 val filter = IntentFilter().apply {
@@ -159,6 +213,19 @@ class ZoomyWallpaperService : WallpaperService() {
             handler.removeCallbacksAndMessages(null)
             Choreographer.getInstance().removeFrameCallback(this)
             PrefsStore.getInstance().sp.unregisterOnSharedPreferenceChangeListener(this)
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val km = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+                val listener = keyguardListener as? KeyguardManager.KeyguardLockedStateListener
+                if (km != null && listener != null) {
+                    try {
+                        km.removeKeyguardLockedStateListener(listener)
+                    } catch (_: Throwable) {
+                    }
+                }
+                keyguardListener = null
+            }
+
             if (receiverRegistered) {
                 try {
                     unregisterReceiver(unlockReceiver)
@@ -171,6 +238,7 @@ class ZoomyWallpaperService : WallpaperService() {
         }
 
         override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
+            cachedCurveInterpolator = null
             if (key == "configTimestamp" || key == "path" || key == "engineMode" || key == "rotate") {
                 handler.post {
                     reloadEngineAssets()
@@ -233,6 +301,9 @@ class ZoomyWallpaperService : WallpaperService() {
             }
 
             if (visible) {
+                // Start immediately when visible (never block on keyguardLockedNow, because during
+                // biometric/swipe unlock on OxygenOS, isKeyguardLocked stays true for ~300ms while
+                // the lockscreen is already fading out to reveal the wallpaper).
                 val triggerMode = prefs.getTriggerMode()
                 val shouldPlayFullAnim = if (triggerMode == 1) {
                     wasKeyguardLocked || keyguardLockedNow
@@ -248,7 +319,7 @@ class ZoomyWallpaperService : WallpaperService() {
                     handler.removeCallbacksAndMessages(null)
                     handler.postDelayed(pauseAnimationRunnable, 50L)
                 } else {
-                    handler.post(pauseAnimationRunnable)
+                    pauseAnimationRunnable.run()
                 }
             }
         }
@@ -280,7 +351,8 @@ class ZoomyWallpaperService : WallpaperService() {
                 }
                 handler.postDelayed(startAnimationRunnable, delayMs)
             } else {
-                handler.post(startAnimationRunnable)
+                // Zero-latency synchronous execution on the current frame tick
+                startAnimationRunnable.run()
             }
         }
 
@@ -291,7 +363,6 @@ class ZoomyWallpaperService : WallpaperService() {
             } else {
                 stopRealTimeAnimation()
                 if (surfaceLockedByCanvas) {
-                    // Surface was already locked by Canvas; load real-time levels until a fresh Surface is created
                     loadRealTimeBlurMipLevelsAsync()
                 } else {
                     setupMediaPlayer()
@@ -348,14 +419,16 @@ class ZoomyWallpaperService : WallpaperService() {
                         cropped
                     }
 
-                    // Build 8 progressive blur mip-levels:
-                    // index 0 = endBlur (sharp original image when endBlur == 0)
-                    // index 7 = startBlur (initial heavy blur)
-                    val steps = 7
+                    // Build 10 perceptually-spaced blur mip-levels ((i / steps)^2.2):
+                    // For startBlur=180, endBlur=0 -> radii [0, 1, 5, 11, 21, 35, 53, 76, 106, 180].
+                    // This eliminates the dead zone of opaque blur (50..180) so unblurring and zooming
+                    // are visibly synchronized from the very first frame, matching iOS.
+                    val steps = 9
                     val levels = ArrayList<Bitmap>(steps + 1)
                     for (i in 0..steps) {
-                        val fraction = i.toFloat() / steps.toFloat()
-                        val r = (endBlur + (startBlur - endBlur) * fraction).roundToInt().coerceAtLeast(0)
+                        val linearFrac = i.toFloat() / steps.toFloat()
+                        val perceptualFrac = linearFrac.pow(2.2f)
+                        val r = (endBlur + (startBlur - endBlur) * perceptualFrac).roundToInt().coerceAtLeast(0)
                         val levelBmp = if (r <= 0) {
                             base
                         } else {
@@ -370,8 +443,7 @@ class ZoomyWallpaperService : WallpaperService() {
                             if (isVisible) {
                                 startRealTimeAnimation()
                             } else {
-                                currentAnimProgress = 1f
-                                drawRealTimeFrame(1f)
+                                stageStartFrame()
                             }
                         }
                     }
@@ -391,6 +463,8 @@ class ZoomyWallpaperService : WallpaperService() {
             animStartTimeMs = SystemClock.uptimeMillis()
             currentAnimProgress = 0f
             isAnimatingRealTime = true
+            // Draw Frame 0 synchronously right now so there is zero VSync wait latency
+            drawRealTimeFrame(0f)
             Choreographer.getInstance().postFrameCallback(this)
         }
 
@@ -418,9 +492,10 @@ class ZoomyWallpaperService : WallpaperService() {
             }
         }
 
-        private fun createCurveInterpolator(): Interpolator {
-            return when (prefs.getCurveType()) {
-                0 -> CubicBezierInterpolator(0.19f, 0.34f, 0.12f, 1.0f)
+        private fun getOrCreateCurveInterpolator(): Interpolator {
+            cachedCurveInterpolator?.let { return it }
+            val created = when (prefs.getCurveType()) {
+                0 -> CubicBezierInterpolator(0.16f, 1.0f, 0.30f, 1.0f)
                 1 -> LinearOutSlowInInterpolator()
                 2 -> FastOutSlowInInterpolator()
                 else -> {
@@ -428,6 +503,8 @@ class ZoomyWallpaperService : WallpaperService() {
                     CubicBezierInterpolator(p.x1, p.y1, p.x2, p.y2)
                 }
             }
+            cachedCurveInterpolator = created
+            return created
         }
 
         private fun drawRealTimeFrame(rawT: Float) {
@@ -438,7 +515,7 @@ class ZoomyWallpaperService : WallpaperService() {
             val renderer = canvasRenderer ?: return
 
             val clampedT = rawT.coerceIn(0f, 1f)
-            val curveInterp = createCurveInterpolator()
+            val curveInterp = getOrCreateCurveInterpolator()
             val curveProgress = curveInterp.getInterpolation(clampedT).coerceIn(0f, 1f)
 
             val totalInset = WallpaperVideoGenerator.computeZoomInsetFactor(
@@ -447,13 +524,13 @@ class ZoomyWallpaperService : WallpaperService() {
                 curveProgress = curveProgress
             ).coerceIn(0f, 0.45f)
 
-            // Blur progress: 1f at start (t=0) -> 0f at or after blurDurationFrac (settling on levels[0])
+            // Both Blur and Zoom are driven by the exact same curveInterp so they launch and settle together
             val blurDurationFrac = (prefs.getBlurTimePercent() / 100f).coerceIn(0f, 1f)
             val blurRemaining = if (blurDurationFrac <= 0.001f || clampedT >= blurDurationFrac || clampedT >= 0.995f) {
                 0f
             } else {
                 val bt = (clampedT / blurDurationFrac).coerceIn(0f, 1f)
-                (1f - FastOutSlowInInterpolator().getInterpolation(bt)).coerceIn(0f, 1f)
+                (1f - curveInterp.getInterpolation(bt)).coerceIn(0f, 1f)
             }
 
             val maxIdx = levels.size - 1
@@ -560,7 +637,6 @@ class ZoomyWallpaperService : WallpaperService() {
             } catch (e: Throwable) {
                 e.printStackTrace()
                 releaseMediaPlayer()
-                // Fallback gracefully to Real-Time Canvas Engine if MediaPlayer cannot bind to Surface
                 loadRealTimeBlurMipLevelsAsync()
             }
         }

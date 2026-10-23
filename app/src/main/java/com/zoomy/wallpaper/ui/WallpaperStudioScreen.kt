@@ -99,7 +99,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.interpolator.view.animation.FastOutSlowInInterpolator
+import androidx.interpolator.view.animation.LinearOutSlowInInterpolator
 import com.zoomy.wallpaper.encoder.WallpaperRenderSpec
 import com.zoomy.wallpaper.encoder.WallpaperVideoGenerator
 import com.zoomy.wallpaper.model.BezierControlPoints
@@ -109,6 +109,7 @@ import com.zoomy.wallpaper.util.ToastUtils
 import kotlinx.coroutines.launch
 import java.util.Locale
 import kotlin.math.max
+import kotlin.math.pow
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -768,7 +769,7 @@ fun WallpaperStudioScreen(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = when (curveType) {
-                                        0 -> "Mode 1: iOS Smooth Ease-Out (0.19, 0.34, 0.12, 1.0)"
+                                        0 -> "Mode 1: iOS Spring Ease-Out (0.16, 1.0, 0.30, 1.0)"
                                         1 -> "Mode 2: Linear-Out Slow-In"
                                         2 -> "Mode 3: Fast-Out Slow-In"
                                         else -> "Custom Cubic Bézier (${(customX1 * 100).roundToInt()}, ${(customY1 * 100).roundToInt()}, ${(customX2 * 100).roundToInt()}, ${(customY2 * 100).roundToInt()})"
@@ -1109,7 +1110,8 @@ private fun AnimatedWallpaperPreviewBox(
     val blurFraction = (spec.blurTimePercent / 100f).coerceIn(0.01f, 1f)
     val blurRemaining = if (rawProgress < blurFraction) {
         val bt = (rawProgress / blurFraction).coerceIn(0f, 1f)
-        1f - FastOutSlowInInterpolator().getInterpolation(bt)
+        val bp = curveInterpolator.getInterpolation(bt).coerceIn(0f, 1f)
+        (1f - bp).pow(1.8f)
     } else {
         0f
     }
@@ -1390,7 +1392,7 @@ private fun CurveEditorSheetContent(
                             )
 
                             val (cpX1, cpY1, cpX2, cpY2) = when (curveType) {
-                                0 -> listOf(0.19f, 0.34f, 0.12f, 1.0f)
+                                0 -> listOf(0.16f, 1.0f, 0.30f, 1.0f)
                                 1 -> listOf(0.0f, 0.0f, 0.2f, 1.0f)
                                 2 -> listOf(0.4f, 0.0f, 0.2f, 1.0f)
                                 else -> listOf(x1, y1, x2, y2)
@@ -1571,7 +1573,7 @@ private fun CurveEditorSheetContent(
                         style = MaterialTheme.typography.labelLarge
                     )
                     TextButton(
-                        onClick = { onCustomChange(0.19f, 0.34f, 0.12f, 1.0f) },
+                        onClick = { onCustomChange(0.16f, 1.0f, 0.30f, 1.0f) },
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
                         modifier = Modifier.height(28.dp)
                     ) {

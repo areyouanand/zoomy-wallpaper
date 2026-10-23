@@ -18,8 +18,8 @@
 
 ### 2. Smart Trigger Conditions & Timing
 - **Every Home Return:** Plays the blur-to-clear + zoom transition whenever the home screen becomes visible (both when unlocking and when swiping home from apps).
-- **Device Unlock Only:** Uses `KeyguardManager` + `Intent.ACTION_USER_PRESENT` so the full animation plays **only when unlocking the device**, staying settled on the sharp resting frame when switching apps.
-- **Playback Start Delay (`0 – 500 ms`):** Syncs the start of the animation with your device's fingerprint/lockscreen fade transition.
+- **Device Unlock Only:** Uses Android 13+ `KeyguardManager.KeyguardLockedStateListener` (direct Binder callback) + `Intent.ACTION_USER_PRESENT` with trigger deduplication so the full animation plays **only when unlocking the device**, staying settled on the sharp resting frame when switching apps.
+- **Playback Start Delay (`0 – 500 ms`):** Syncs the start of the animation with your device's fingerprint/lockscreen fade transition (or `0 ms` synchronous start).
 
 ### 3. iOS-Style Visual Polish
 - **Zoom Modes:**
@@ -27,7 +27,7 @@
   - **1× → Zoom In:** Starts at `1×` and zooms in.
   - **Zoom Pulse:** Smooth zoom-in and settle back to `1×`.
 - **Interactive Animation Curve Studio:**
-  - 3 built-in presets (*Mode 1: iOS Smooth Ease-Out `(0.19, 0.34, 0.12, 1.0)`*, *Mode 2: Linear-Out Slow-In*, *Mode 3: Fast-Out Slow-In*) + a **Custom 4-Point Cubic Bézier Editor** (`X1, Y1, X2, Y2`) with side-by-side live curve graph and live wallpaper preview.
+  - 3 built-in presets (*Mode 1: iOS Spring Ease-Out `(0.16, 1.0, 0.30, 1.0)`*, *Mode 2: Linear-Out Slow-In*, *Mode 3: Fast-Out Slow-In*) + a **Custom 4-Point Cubic Bézier Editor** (`X1, Y1, X2, Y2`) with side-by-side live curve graph and live wallpaper preview.
 - **Gaussian Blur & Resting Home Blur:**
   - Configurable **Blur Duration (`0 – 100%`)**, **Start Blur Intensity (`0 – 180`)**, and **Resting Home Screen Blur (`0 – 100`)** (like iOS's *"Blur"* home screen wallpaper toggle).
 - **iOS "Color Wake" Bloom (`0 – 100%`):**

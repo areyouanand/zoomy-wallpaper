@@ -17,9 +17,9 @@ class WallpaperPreferences private constructor() {
 
     fun getBezierControlPoints(): BezierControlPoints {
         return BezierControlPoints(
-            x1 = PrefsStore.getInstance().getFloat("bezier.x1", 0.19f),
-            y1 = PrefsStore.getInstance().getFloat("bezier.y1", 0.34f),
-            x2 = PrefsStore.getInstance().getFloat("bezier.x2", 0.12f),
+            x1 = PrefsStore.getInstance().getFloat("bezier.x1", 0.16f),
+            y1 = PrefsStore.getInstance().getFloat("bezier.y1", 1.0f),
+            x2 = PrefsStore.getInstance().getFloat("bezier.x2", 0.30f),
             y2 = PrefsStore.getInstance().getFloat("bezier.y2", 1.0f)
         )
     }
@@ -175,7 +175,7 @@ class WallpaperPreferences private constructor() {
 
     fun resetAllToDefaults() {
         setCurveType(0)
-        setBezierControlPoints(BezierControlPoints(0.19f, 0.34f, 0.12f, 1.0f))
+        setBezierControlPoints(BezierControlPoints(0.16f, 1.0f, 0.30f, 1.0f))
         setFps(detectMaxDisplayFps())
         setEncodeMode(1)
         setEngineMode(0)

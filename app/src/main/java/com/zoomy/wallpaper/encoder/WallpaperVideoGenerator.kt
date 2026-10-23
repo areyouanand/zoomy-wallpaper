@@ -24,6 +24,7 @@ import java.io.File
 import kotlin.math.PI
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
@@ -75,7 +76,7 @@ data class WallpaperRenderSpec(
 
     fun createInterpolator(): Interpolator {
         return when (curveType) {
-            0 -> CubicBezierInterpolator(0.19f, 0.34f, 0.12f, 1.0f)
+            0 -> CubicBezierInterpolator(0.16f, 1.0f, 0.30f, 1.0f)
             1 -> LinearOutSlowInInterpolator()
             2 -> FastOutSlowInInterpolator()
             else -> CubicBezierInterpolator(
@@ -200,7 +201,7 @@ object WallpaperVideoGenerator {
             val totalFrames = spec.totalFrames
             val maxBlurFrames = max(1f, (totalFrames - 2).toFloat())
             val blurFrameLimit = ((spec.blurTimePercent / 100f) * maxBlurFrames).roundToInt()
-            val blurInterpolator = FastOutSlowInInterpolator()
+            val blurInterpolator = spec.createInterpolator()
 
             val restingBitmap: Bitmap = if (spec.endBlur > 0) {
                 StackBlurEngine.fastBlurScaled(workingBitmap, spec.endBlur)
@@ -317,8 +318,9 @@ object WallpaperVideoGenerator {
             return endBlur
         }
         val t = (frameIndex.toFloat() / blurFrameLimit.toFloat()).coerceIn(0f, 1f)
-        val p = blurInterpolator.getInterpolation(t)
-        return (startBlur + (endBlur - startBlur) * p).roundToInt().coerceAtLeast(0)
+        val p = blurInterpolator.getInterpolation(t).coerceIn(0f, 1f)
+        val perceptualRem = (1f - p).pow(2.2f)
+        return (endBlur + (startBlur - endBlur) * perceptualRem).roundToInt().coerceAtLeast(0)
     }
 
     fun computeZoomInsetFactor(
