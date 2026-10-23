@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Outer Blur-to-Sharp Concentric Aperture Rings -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#28FFFFFF"
+        android:strokeWidth="1.5"
+        android:pathData="M54,54m-33,0a33,33 0,1 1,66 0a33,33 0,1 1,-66 0" />
+
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#44FFFFFF"
+        android:strokeWidth="2.0"
+        android:pathData="M54,54m-27,0a27,27 0,1 1,54 0a27,27 0,1 1,-54 0" />
+
+    <!-- Layered Frosted Back Card (tilted perception) -->
+    <path
+        android:fillColor="#2600E5FF"
+        android:pathData="M34,34h40a8,8 0,0 1,8 8v24a8,8 0,0 1,-8 8h-40a8,8 0,0 1,-8 -8v-24a8,8 0,0 1,8 -8z" />
+
+    <!-- Main Vibrant Prismatic Lens Disc -->
+    <path android:pathData="M54,54m-22,0a22,22 0,1 1,44 0a22,22 0,1 1,-44 0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="32"
+                android:startY="32"
+                android:endX="76"
+                android:endY="76"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FFFF5252" />
+                <item android:offset="0.48" android:color="#FFFFAB40" />
+                <item android:offset="1.0" android:color="#FF7C4DFF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Crisp Inner Lens Rim -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#CCFFFFFF"
+        android:strokeWidth="2.2"
+        android:pathData="M54,54m-22,0a22,22 0,1 1,44 0a22,22 0,1 1,-44 0" />
+
+    <!-- Stylized Dynamic "Z" Zoom Bolt / Ribbon in Center -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="4.6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M44,43 L64,43 L44,65 L64,65" />
+
+    <!-- Outward Zoom Arrows at Diagonal Corners -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF00E5FF"
+        android:strokeWidth="2.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M29,37 L29,29 L37,29 M71,29 L79,29 L79,37 M29,71 L29,79 L37,79 M71,79 L79,79 L79,71" />
+</vector>
