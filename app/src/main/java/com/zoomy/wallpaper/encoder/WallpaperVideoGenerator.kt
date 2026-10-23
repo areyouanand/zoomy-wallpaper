@@ -318,8 +318,7 @@ object WallpaperVideoGenerator {
             return endBlur
         }
         val t = (frameIndex.toFloat() / blurFrameLimit.toFloat()).coerceIn(0f, 1f)
-        val p = blurInterpolator.getInterpolation(t).coerceIn(0f, 1f)
-        val perceptualRem = (1f - p).pow(2.2f)
+        val perceptualRem = (1f - t).coerceIn(0f, 1f)
         return (endBlur + (startBlur - endBlur) * perceptualRem).roundToInt().coerceAtLeast(0)
     }
 

@@ -649,20 +649,28 @@ fun WallpaperStudioScreen(
                         "iOS Classic" to {
                             curveType = 0
                             zoomMode = 0
-                            scalePercent = 15
+                            fps = 120f
+                            addFps = 60
+                            encodeMode = 1
+                            scalePercent = 30
                             blurTimePercent = 50
                             startBlur = 180
                             endBlur = 0
-                            startDimPercent = 0
+                            startDimPercent = 10
                             endDimPercent = 0
-                            colorBloomPercent = 30
+                            colorBloomPercent = 50
                             parallaxPercent = 35
                             depthZoomEnabled = true
                             delayTimeMs = 0
                             triggerMode = 0
-                            topScrimPercent = 0
-                            bottomScrimPercent = 0
+                            topScrimPercent = 40
+                            bottomScrimPercent = 40
                             darkModeExtraDimPercent = 0
+                            bitRateProgress = 40
+                            customX1 = 0.3f
+                            customY1 = 1.0f
+                            customX2 = 0.3f
+                            customY2 = 0.0f
                         },
                         "Cinematic" to {
                             curveType = 0
@@ -718,24 +726,6 @@ fun WallpaperStudioScreen(
                             bottomScrimPercent = 40
                             darkModeExtraDimPercent = 40
                         },
-                        "Pulse Energy" to {
-                            curveType = 0
-                            zoomMode = 2
-                            scalePercent = 30
-                            blurTimePercent = 40
-                            startBlur = 180
-                            endBlur = 0
-                            startDimPercent = 10
-                            endDimPercent = 0
-                            colorBloomPercent = 50
-                            parallaxPercent = 60
-                            depthZoomEnabled = true
-                            delayTimeMs = 0
-                            triggerMode = 0
-                            topScrimPercent = 20
-                            bottomScrimPercent = 30
-                            darkModeExtraDimPercent = 0
-                        }
                     )
 
                     FlowRow(
@@ -853,7 +843,7 @@ fun WallpaperStudioScreen(
                         valueLabel = "${delayTimeMs} ms",
                         value = delayTimeMs.toFloat(),
                         valueRange = 0f..500f,
-                        onValueChange = { delayTimeMs = (it / 10f).roundToInt() * 10 },
+                        onValueChange = { delayTimeMs = (it / 5f).roundToInt() * 5 },
                         onReset = { delayTimeMs = 0 }
                     )
 
@@ -865,7 +855,7 @@ fun WallpaperStudioScreen(
                             valueLabel = if (parallaxPercent == 0) "Off" else "$parallaxPercent%",
                             value = parallaxPercent.toFloat(),
                             valueRange = 0f..100f,
-                            onValueChange = { parallaxPercent = (it / 10f).roundToInt() * 10 },
+                            onValueChange = { parallaxPercent = (it / 5f).roundToInt() * 5 },
                             onReset = { parallaxPercent = 35 }
                         )
                     }
@@ -960,7 +950,7 @@ fun WallpaperStudioScreen(
                         valueLabel = "${durationMs} ms",
                         value = addFps.toFloat(),
                         valueRange = 0f..120f,
-                        onValueChange = { addFps = (it / 10f).roundToInt() * 10 },
+                        onValueChange = { addFps = (it / 5f).roundToInt() * 5 },
                         onReset = { addFps = 60 }
                     )
 
@@ -968,9 +958,9 @@ fun WallpaperStudioScreen(
                         title = "Zoom Scale",
                         valueLabel = "$scalePercent%",
                         value = scalePercent.toFloat(),
-                        valueRange = 0f..49f,
-                        onValueChange = { scalePercent = (it / 10f).roundToInt() * 10 },
-                        onReset = { scalePercent = 15 }
+                        valueRange = 0f..50f,
+                        onValueChange = { scalePercent = (it / 5f).roundToInt() * 5 },
+                        onReset = { scalePercent = 20 }
                     )
                 }
             }
@@ -1003,7 +993,7 @@ fun WallpaperStudioScreen(
                         valueLabel = "$blurTimePercent%",
                         value = blurTimePercent.toFloat(),
                         valueRange = 0f..100f,
-                        onValueChange = { blurTimePercent = (it / 10f).roundToInt() * 10 },
+                        onValueChange = { blurTimePercent = (it / 5f).roundToInt() * 5 },
                         onReset = { blurTimePercent = 50 }
                     )
 
@@ -1012,7 +1002,7 @@ fun WallpaperStudioScreen(
                         valueLabel = "$startBlur",
                         value = startBlur.toFloat(),
                         valueRange = 0f..180f,
-                        onValueChange = { startBlur = (it / 10f).roundToInt() * 10 },
+                        onValueChange = { startBlur = (it / 5f).roundToInt() * 5 },
                         onReset = { startBlur = 180 }
                     )
 
@@ -1021,7 +1011,7 @@ fun WallpaperStudioScreen(
                         valueLabel = if (endBlur == 0) "Off (0)" else "$endBlur",
                         value = endBlur.toFloat(),
                         valueRange = 0f..100f,
-                        onValueChange = { endBlur = (it / 10f).roundToInt() * 10 },
+                        onValueChange = { endBlur = (it / 5f).roundToInt() * 5 },
                         onReset = { endBlur = 0 }
                     )
 
@@ -1030,7 +1020,7 @@ fun WallpaperStudioScreen(
                         valueLabel = if (colorBloomPercent == 0) "Off" else "$colorBloomPercent%",
                         value = colorBloomPercent.toFloat(),
                         valueRange = 0f..100f,
-                        onValueChange = { colorBloomPercent = (it / 10f).roundToInt() * 10 },
+                        onValueChange = { colorBloomPercent = (it / 5f).roundToInt() * 5 },
                         onReset = { colorBloomPercent = 30 }
                     )
 
@@ -1041,7 +1031,7 @@ fun WallpaperStudioScreen(
                         valueLabel = "$startDimPercent%",
                         value = startDimPercent.toFloat(),
                         valueRange = 0f..60f,
-                        onValueChange = { startDimPercent = (it / 10f).roundToInt() * 10 },
+                        onValueChange = { startDimPercent = (it / 5f).roundToInt() * 5 },
                         onReset = { startDimPercent = 0 }
                     )
 
@@ -1050,7 +1040,7 @@ fun WallpaperStudioScreen(
                         valueLabel = "$endDimPercent%",
                         value = endDimPercent.toFloat(),
                         valueRange = 0f..60f,
-                        onValueChange = { endDimPercent = (it / 10f).roundToInt() * 10 },
+                        onValueChange = { endDimPercent = (it / 5f).roundToInt() * 5 },
                         onReset = { endDimPercent = 0 }
                     )
 
@@ -1059,7 +1049,7 @@ fun WallpaperStudioScreen(
                         valueLabel = if (darkModeExtraDimPercent == 0) "Off" else "+$darkModeExtraDimPercent%",
                         value = darkModeExtraDimPercent.toFloat(),
                         valueRange = 0f..60f,
-                        onValueChange = { darkModeExtraDimPercent = (it / 10f).roundToInt() * 10 },
+                        onValueChange = { darkModeExtraDimPercent = (it / 5f).roundToInt() * 5 },
                         onReset = { darkModeExtraDimPercent = 0 }
                     )
 
@@ -1070,7 +1060,7 @@ fun WallpaperStudioScreen(
                         valueLabel = if (topScrimPercent == 0) "Off" else "$topScrimPercent%",
                         value = topScrimPercent.toFloat(),
                         valueRange = 0f..80f,
-                        onValueChange = { topScrimPercent = (it / 10f).roundToInt() * 10 },
+                        onValueChange = { topScrimPercent = (it / 5f).roundToInt() * 5 },
                         onReset = { topScrimPercent = 0 }
                     )
 
@@ -1079,7 +1069,7 @@ fun WallpaperStudioScreen(
                         valueLabel = if (bottomScrimPercent == 0) "Off" else "$bottomScrimPercent%",
                         value = bottomScrimPercent.toFloat(),
                         valueRange = 0f..80f,
-                        onValueChange = { bottomScrimPercent = (it / 10f).roundToInt() * 10 },
+                        onValueChange = { bottomScrimPercent = (it / 5f).roundToInt() * 5 },
                         onReset = { bottomScrimPercent = 0 }
                     )
                 }
@@ -1145,8 +1135,8 @@ fun WallpaperStudioScreen(
                             title = "Video Bitrate",
                             valueLabel = String.format(Locale.US, "%.1f Mbps", mbps),
                             value = bitRateProgress.toFloat(),
-                            valueRange = 1f..40f,
-                            onValueChange = { bitRateProgress = ((it / 10f).roundToInt() * 10).coerceAtLeast(1) },
+                            valueRange = 0f..40f,
+                            onValueChange = { bitRateProgress = ((it / 5f).roundToInt() * 5).coerceAtLeast(1) },
                             onReset = { bitRateProgress = 20 }
                         )
                     }
@@ -1250,8 +1240,7 @@ private fun AnimatedWallpaperPreviewBox(
     val blurFraction = (spec.blurTimePercent / 100f).coerceIn(0.01f, 1f)
     val blurRemaining = if (rawProgress < blurFraction) {
         val bt = (rawProgress / blurFraction).coerceIn(0f, 1f)
-        val bp = curveInterpolator.getInterpolation(bt).coerceIn(0f, 1f)
-        (1f - bp).pow(1.8f)
+        (1f - bt)
     } else {
         0f
     }
@@ -1377,7 +1366,8 @@ private fun ParameterSlider(
     value: Float,
     valueRange: ClosedFloatingPointRange<Float>,
     onValueChange: (Float) -> Unit,
-    onReset: () -> Unit
+    onReset: () -> Unit,
+    steps: Int = 0
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Row(
@@ -1411,7 +1401,10 @@ private fun ParameterSlider(
         Slider(
             value = value.coerceIn(valueRange.start, valueRange.endInclusive),
             onValueChange = onValueChange,
-            valueRange = valueRange
+            valueRange = valueRange,
+            steps = if (steps > 0) steps else {
+                (((valueRange.endInclusive - valueRange.start) / 5f).roundToInt() - 1).coerceAtLeast(0)
+            }
         )
     }
 }
@@ -1730,13 +1723,13 @@ private fun CurveEditorSheetContent(
                     CompactControlSlider(
                         label = "X1",
                         value = x1,
-                        onValueChange = { onCustomChange((it * 10f).roundToInt() / 10f, y1, x2, y2) },
+                        onValueChange = { onCustomChange((it * 20f).roundToInt() / 20f, y1, x2, y2) },
                         modifier = Modifier.weight(1f)
                     )
                     CompactControlSlider(
                         label = "Y1",
                         value = y1,
-                        onValueChange = { onCustomChange(x1, (it * 10f).roundToInt() / 10f, x2, y2) },
+                        onValueChange = { onCustomChange(x1, (it * 20f).roundToInt() / 20f, x2, y2) },
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -1748,13 +1741,13 @@ private fun CurveEditorSheetContent(
                     CompactControlSlider(
                         label = "X2",
                         value = x2,
-                        onValueChange = { onCustomChange(x1, y1, (it * 10f).roundToInt() / 10f, y2) },
+                        onValueChange = { onCustomChange(x1, y1, (it * 20f).roundToInt() / 20f, y2) },
                         modifier = Modifier.weight(1f)
                     )
                     CompactControlSlider(
                         label = "Y2",
                         value = y2,
-                        onValueChange = { onCustomChange(x1, y1, x2, (it * 10f).roundToInt() / 10f) },
+                        onValueChange = { onCustomChange(x1, y1, x2, (it * 20f).roundToInt() / 20f) },
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -1768,7 +1761,8 @@ private fun CompactControlSlider(
     label: String,
     value: Float,
     onValueChange: (Float) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    steps: Int = 19
 ) {
     Column(modifier = modifier) {
         Row(
@@ -1789,7 +1783,8 @@ private fun CompactControlSlider(
         Slider(
             value = value.coerceIn(0f, 1f),
             onValueChange = onValueChange,
-            valueRange = 0f..1f
+            valueRange = 0f..1f,
+            steps = steps
         )
     }
 }

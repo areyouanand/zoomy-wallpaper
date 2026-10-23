@@ -81,20 +81,63 @@ class ZoomyWallpaperService : WallpaperService() {
         private var lastAnimStartUptimeMs = 0L
         private var receiverRegistered = false
         private var keyguardListener: Any? = null
+        private var lastLoadedConfigTimestamp = -1L
+        private var lastKeyguardLockedState = false
+        private val keyguardStatePollRunnable = object : Runnable {
+            override fun run() {
+
+                val km = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+                val lockedNow = km?.isKeyguardLocked == true
+                if (lockedNow && !lastKeyguardLockedState) {
+                    // transitioned to locked (screen off / lock)
+
+                    wasKeyguardLocked = true
+                    handler.removeCallbacksAndMessages(null)
+                    stageStartFrame()
+                } else if (!lockedNow && lastKeyguardLockedState) {
+                    // transitioned to unlocked (fingerprint success) -> trigger animation ASAP
+
+                    onKeyguardUnlockedNow()
+                }
+                lastKeyguardLockedState = lockedNow
+                // Periodic heartbeat log (every ~1s) to confirm poller is alive and reading state
+
+                handler.postDelayed(this, 8L)
+            }
+        }
 
         private val unlockReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
+
                 when (intent?.action) {
                     Intent.ACTION_SCREEN_OFF -> {
                         wasKeyguardLocked = true
-                        handler.removeCallbacksAndMessages(null)
+                        lastKeyguardLockedState = true
+                        handler.removeCallbacks(startAnimationRunnable)
+                        handler.removeCallbacks(pauseAnimationRunnable)
                         stageStartFrame()
+                    }
+                    Intent.ACTION_SCREEN_ON -> {
+                        val km = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+                        if (km?.isKeyguardLocked == true) {
+                            wasKeyguardLocked = true
+                            lastKeyguardLockedState = true
+                            handler.removeCallbacks(startAnimationRunnable)
+                            handler.removeCallbacks(pauseAnimationRunnable)
+                            stageStartFrame()
+                        } else {
+                            onKeyguardUnlockedNow()
+                        }
                     }
                     Intent.ACTION_USER_PRESENT -> {
                         onKeyguardUnlockedNow()
                     }
                 }
             }
+        }
+
+        private fun startKeyguardPolling() {
+            // continuous polling already started in onCreate; nothing to do here
         }
 
         private val startAnimationRunnable = Runnable {
@@ -160,12 +203,14 @@ class ZoomyWallpaperService : WallpaperService() {
         private fun onKeyguardUnlockedNow() {
             val sinceLastStart = SystemClock.uptimeMillis() - lastAnimStartUptimeMs
             wasKeyguardLocked = false
-            if (sinceLastStart in 0L..650L) {
+            // Skip if an animation is already running or started recently, to avoid restarting mid-flight.
+            if (isAnimatingRealTime || sinceLastStart < 1500L) {
                 return
             }
-            if (isVisible) {
-                schedulePlayAnimation(forceFullAnimation = true)
-            }
+            // Start the animation clock as early as possible (even before the wallpaper
+            // is composited as visible) so it is already mid-flight when the lockscreen
+            // fade-out reveals it, eliminating the perceived "delay before unblur".
+            schedulePlayAnimation(forceFullAnimation = true)
         }
 
         override fun onCreate(surfaceHolder: SurfaceHolder?) {
@@ -176,6 +221,9 @@ class ZoomyWallpaperService : WallpaperService() {
 
             val km = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
             wasKeyguardLocked = km?.isKeyguardLocked == true
+            lastKeyguardLockedState = wasKeyguardLocked
+            // Start continuous keyguard-state polling (primary trigger mechanism).
+            handler.post(keyguardStatePollRunnable)
 
             // Register fast Binder-based KeyguardLockedStateListener on Android 13+ (API 33+)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && km != null) {
@@ -197,7 +245,9 @@ class ZoomyWallpaperService : WallpaperService() {
                 val filter = IntentFilter().apply {
                     addAction(Intent.ACTION_USER_PRESENT)
                     addAction(Intent.ACTION_SCREEN_OFF)
+                    addAction(Intent.ACTION_SCREEN_ON)
                 }
+
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     registerReceiver(unlockReceiver, filter, Context.RECEIVER_EXPORTED)
                 } else {
@@ -226,6 +276,8 @@ class ZoomyWallpaperService : WallpaperService() {
                 keyguardListener = null
             }
 
+            handler.removeCallbacks(keyguardStatePollRunnable)
+            handler.removeCallbacks(keyguardStatePollRunnable)
             if (receiverRegistered) {
                 try {
                     unregisterReceiver(unlockReceiver)
@@ -301,9 +353,7 @@ class ZoomyWallpaperService : WallpaperService() {
             }
 
             if (visible) {
-                // Start immediately when visible (never block on keyguardLockedNow, because during
-                // biometric/swipe unlock on OxygenOS, isKeyguardLocked stays true for ~300ms while
-                // the lockscreen is already fading out to reveal the wallpaper).
+
                 val triggerMode = prefs.getTriggerMode()
                 val shouldPlayFullAnim = if (triggerMode == 1) {
                     wasKeyguardLocked || keyguardLockedNow
@@ -313,10 +363,15 @@ class ZoomyWallpaperService : WallpaperService() {
                 if (!keyguardLockedNow) {
                     wasKeyguardLocked = false
                 }
+                // If keyguard is still locked (fingerprint unlock in progress), poll every 16ms
+                // so we start the animation the instant isKeyguardLocked flips to false,
+                // instead of waiting for the (late) KeyguardLockedStateListener / ACTION_USER_PRESENT.
+                // Continuous polling is already running; nothing extra needed here.
                 schedulePlayAnimation(forceFullAnimation = shouldPlayFullAnim)
             } else {
                 if (prefs.isDebounceVisibility()) {
-                    handler.removeCallbacksAndMessages(null)
+                    handler.removeCallbacks(startAnimationRunnable)
+                    handler.removeCallbacks(pauseAnimationRunnable)
                     handler.postDelayed(pauseAnimationRunnable, 50L)
                 } else {
                     pauseAnimationRunnable.run()
@@ -325,7 +380,8 @@ class ZoomyWallpaperService : WallpaperService() {
         }
 
         private fun schedulePlayAnimation(forceFullAnimation: Boolean) {
-            handler.removeCallbacksAndMessages(null)
+            handler.removeCallbacks(startAnimationRunnable)
+            handler.removeCallbacks(pauseAnimationRunnable)
             if (!forceFullAnimation) {
                 if (shouldUseRealTimeCanvas()) {
                     stopRealTimeAnimation()
@@ -371,6 +427,26 @@ class ZoomyWallpaperService : WallpaperService() {
         }
 
         private fun loadRealTimeBlurMipLevelsAsync() {
+            val currentConfigTs = PrefsStore.getInstance().getLong("configTimestamp", 0L)
+            // If levels are already built for this exact config, reuse them instantly
+            // (avoids the multi-second re-blur delay when the surface is recreated on unlock).
+            if (blurMipLevels.isNotEmpty() && lastLoadedConfigTimestamp == currentConfigTs) {
+                handler.post {
+                    if (shouldUseRealTimeCanvas()) {
+                        val km = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+                        if (km?.isKeyguardLocked == true) {
+                            stageStartFrame()
+                        } else if (isVisible) {
+                            startRealTimeAnimation()
+                        } else {
+                            currentAnimProgress = 1f
+                            drawRealTimeFrame(1f)
+                        }
+                    }
+                }
+                return
+            }
+
             val savedPath = PrefsStore.getInstance().getString("path")
             val fallbackFile = File(baseDirPath ?: "", "selected_wallpaper.jpg")
             val targetPath = if (savedPath.isNotEmpty() && File(savedPath).exists()) {
@@ -438,12 +514,17 @@ class ZoomyWallpaperService : WallpaperService() {
                     }
 
                     blurMipLevels = levels
+                    lastLoadedConfigTimestamp = currentConfigTs
                     handler.post {
                         if (shouldUseRealTimeCanvas()) {
-                            if (isVisible) {
+                            val km = getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+                            if (km?.isKeyguardLocked == true) {
+                                stageStartFrame()
+                            } else if (isVisible) {
                                 startRealTimeAnimation()
                             } else {
-                                stageStartFrame()
+                                currentAnimProgress = 1f
+                                drawRealTimeFrame(1f)
                             }
                         }
                     }
@@ -524,13 +605,15 @@ class ZoomyWallpaperService : WallpaperService() {
                 curveProgress = curveProgress
             ).coerceIn(0f, 0.45f)
 
-            // Both Blur and Zoom are driven by the exact same curveInterp so they launch and settle together
+            // Blur decays on a faster power curve so unblurring is visible from the very first
+            // frame (the cubic-bezier spring rises too slowly in its first 10% to show any change).
+            // Zoom keeps using the iOS spring curve; both still start at t=0 and finish by blurDurationFrac.
             val blurDurationFrac = (prefs.getBlurTimePercent() / 100f).coerceIn(0f, 1f)
             val blurRemaining = if (blurDurationFrac <= 0.001f || clampedT >= blurDurationFrac || clampedT >= 0.995f) {
                 0f
             } else {
                 val bt = (clampedT / blurDurationFrac).coerceIn(0f, 1f)
-                (1f - curveInterp.getInterpolation(bt)).coerceIn(0f, 1f)
+                (1f - bt).coerceIn(0f, 1f)
             }
 
             val maxIdx = levels.size - 1
