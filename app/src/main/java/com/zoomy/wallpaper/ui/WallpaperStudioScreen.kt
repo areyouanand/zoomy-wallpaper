@@ -617,6 +617,146 @@ fun WallpaperStudioScreen(
                 }
             }
 
+            // 1.5 Presets Card (Beginner-friendly one-tap animation/effect feels)
+            ElevatedCard(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.elevatedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Text(
+                            text = "Animation & Effect Presets",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    Text(
+                        text = "One-tap bundles of curve, zoom, blur, dimming and scrims for different feels",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    val presets = listOf(
+                        "iOS Classic" to {
+                            curveType = 0
+                            zoomMode = 0
+                            scalePercent = 15
+                            blurTimePercent = 50
+                            startBlur = 180
+                            endBlur = 0
+                            startDimPercent = 0
+                            endDimPercent = 0
+                            colorBloomPercent = 30
+                            parallaxPercent = 35
+                            depthZoomEnabled = true
+                            delayTimeMs = 0
+                            triggerMode = 0
+                            topScrimPercent = 0
+                            bottomScrimPercent = 0
+                            darkModeExtraDimPercent = 0
+                        },
+                        "Cinematic" to {
+                            curveType = 0
+                            zoomMode = 0
+                            scalePercent = 25
+                            blurTimePercent = 80
+                            startBlur = 180
+                            endBlur = 20
+                            startDimPercent = 30
+                            endDimPercent = 10
+                            colorBloomPercent = 60
+                            parallaxPercent = 50
+                            depthZoomEnabled = true
+                            delayTimeMs = 100
+                            triggerMode = 0
+                            topScrimPercent = 40
+                            bottomScrimPercent = 50
+                            darkModeExtraDimPercent = 20
+                        },
+                        "Minimal" to {
+                            curveType = 1
+                            zoomMode = 0
+                            scalePercent = 8
+                            blurTimePercent = 30
+                            startBlur = 100
+                            endBlur = 0
+                            startDimPercent = 0
+                            endDimPercent = 0
+                            colorBloomPercent = 0
+                            parallaxPercent = 20
+                            depthZoomEnabled = false
+                            delayTimeMs = 0
+                            triggerMode = 0
+                            topScrimPercent = 0
+                            bottomScrimPercent = 0
+                            darkModeExtraDimPercent = 0
+                        },
+                        "AMOLED Dream" to {
+                            curveType = 2
+                            zoomMode = 2
+                            scalePercent = 20
+                            blurTimePercent = 60
+                            startBlur = 180
+                            endBlur = 30
+                            startDimPercent = 20
+                            endDimPercent = 15
+                            colorBloomPercent = 80
+                            parallaxPercent = 40
+                            depthZoomEnabled = true
+                            delayTimeMs = 50
+                            triggerMode = 0
+                            topScrimPercent = 30
+                            bottomScrimPercent = 40
+                            darkModeExtraDimPercent = 40
+                        },
+                        "Pulse Energy" to {
+                            curveType = 0
+                            zoomMode = 2
+                            scalePercent = 30
+                            blurTimePercent = 40
+                            startBlur = 180
+                            endBlur = 0
+                            startDimPercent = 10
+                            endDimPercent = 0
+                            colorBloomPercent = 50
+                            parallaxPercent = 60
+                            depthZoomEnabled = true
+                            delayTimeMs = 0
+                            triggerMode = 0
+                            topScrimPercent = 20
+                            bottomScrimPercent = 30
+                            darkModeExtraDimPercent = 0
+                        }
+                    )
+
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        presets.forEach { (name, apply) ->
+                            FilterChip(
+                                selected = false,
+                                onClick = {
+                                    apply()
+                                    saveAllPreferences()
+                                    ToastUtils.showShort("Preset applied: $name")
+                                },
+                                label = { Text(name) }
+                            )
+                        }
+                    }
+                }
+            }
+
             // 2. Group 1 & 3: Smart Triggers, Engine Mode & Launcher Interactivity Card
             ElevatedCard(
                 modifier = Modifier.fillMaxWidth(),
@@ -725,7 +865,7 @@ fun WallpaperStudioScreen(
                             valueLabel = if (parallaxPercent == 0) "Off" else "$parallaxPercent%",
                             value = parallaxPercent.toFloat(),
                             valueRange = 0f..100f,
-                            onValueChange = { parallaxPercent = it.roundToInt() },
+                            onValueChange = { parallaxPercent = (it / 10f).roundToInt() * 10 },
                             onReset = { parallaxPercent = 35 }
                         )
                     }
@@ -820,7 +960,7 @@ fun WallpaperStudioScreen(
                         valueLabel = "${durationMs} ms",
                         value = addFps.toFloat(),
                         valueRange = 0f..120f,
-                        onValueChange = { addFps = it.roundToInt() },
+                        onValueChange = { addFps = (it / 10f).roundToInt() * 10 },
                         onReset = { addFps = 60 }
                     )
 
@@ -829,7 +969,7 @@ fun WallpaperStudioScreen(
                         valueLabel = "$scalePercent%",
                         value = scalePercent.toFloat(),
                         valueRange = 0f..49f,
-                        onValueChange = { scalePercent = it.roundToInt() },
+                        onValueChange = { scalePercent = (it / 10f).roundToInt() * 10 },
                         onReset = { scalePercent = 15 }
                     )
                 }
@@ -863,7 +1003,7 @@ fun WallpaperStudioScreen(
                         valueLabel = "$blurTimePercent%",
                         value = blurTimePercent.toFloat(),
                         valueRange = 0f..100f,
-                        onValueChange = { blurTimePercent = it.roundToInt() },
+                        onValueChange = { blurTimePercent = (it / 10f).roundToInt() * 10 },
                         onReset = { blurTimePercent = 50 }
                     )
 
@@ -872,7 +1012,7 @@ fun WallpaperStudioScreen(
                         valueLabel = "$startBlur",
                         value = startBlur.toFloat(),
                         valueRange = 0f..180f,
-                        onValueChange = { startBlur = it.roundToInt() },
+                        onValueChange = { startBlur = (it / 10f).roundToInt() * 10 },
                         onReset = { startBlur = 180 }
                     )
 
@@ -881,7 +1021,7 @@ fun WallpaperStudioScreen(
                         valueLabel = if (endBlur == 0) "Off (0)" else "$endBlur",
                         value = endBlur.toFloat(),
                         valueRange = 0f..100f,
-                        onValueChange = { endBlur = it.roundToInt() },
+                        onValueChange = { endBlur = (it / 10f).roundToInt() * 10 },
                         onReset = { endBlur = 0 }
                     )
 
@@ -890,7 +1030,7 @@ fun WallpaperStudioScreen(
                         valueLabel = if (colorBloomPercent == 0) "Off" else "$colorBloomPercent%",
                         value = colorBloomPercent.toFloat(),
                         valueRange = 0f..100f,
-                        onValueChange = { colorBloomPercent = it.roundToInt() },
+                        onValueChange = { colorBloomPercent = (it / 10f).roundToInt() * 10 },
                         onReset = { colorBloomPercent = 30 }
                     )
 
@@ -901,7 +1041,7 @@ fun WallpaperStudioScreen(
                         valueLabel = "$startDimPercent%",
                         value = startDimPercent.toFloat(),
                         valueRange = 0f..60f,
-                        onValueChange = { startDimPercent = it.roundToInt() },
+                        onValueChange = { startDimPercent = (it / 10f).roundToInt() * 10 },
                         onReset = { startDimPercent = 0 }
                     )
 
@@ -910,7 +1050,7 @@ fun WallpaperStudioScreen(
                         valueLabel = "$endDimPercent%",
                         value = endDimPercent.toFloat(),
                         valueRange = 0f..60f,
-                        onValueChange = { endDimPercent = it.roundToInt() },
+                        onValueChange = { endDimPercent = (it / 10f).roundToInt() * 10 },
                         onReset = { endDimPercent = 0 }
                     )
 
@@ -919,7 +1059,7 @@ fun WallpaperStudioScreen(
                         valueLabel = if (darkModeExtraDimPercent == 0) "Off" else "+$darkModeExtraDimPercent%",
                         value = darkModeExtraDimPercent.toFloat(),
                         valueRange = 0f..60f,
-                        onValueChange = { darkModeExtraDimPercent = it.roundToInt() },
+                        onValueChange = { darkModeExtraDimPercent = (it / 10f).roundToInt() * 10 },
                         onReset = { darkModeExtraDimPercent = 0 }
                     )
 
@@ -930,7 +1070,7 @@ fun WallpaperStudioScreen(
                         valueLabel = if (topScrimPercent == 0) "Off" else "$topScrimPercent%",
                         value = topScrimPercent.toFloat(),
                         valueRange = 0f..80f,
-                        onValueChange = { topScrimPercent = it.roundToInt() },
+                        onValueChange = { topScrimPercent = (it / 10f).roundToInt() * 10 },
                         onReset = { topScrimPercent = 0 }
                     )
 
@@ -939,7 +1079,7 @@ fun WallpaperStudioScreen(
                         valueLabel = if (bottomScrimPercent == 0) "Off" else "$bottomScrimPercent%",
                         value = bottomScrimPercent.toFloat(),
                         valueRange = 0f..80f,
-                        onValueChange = { bottomScrimPercent = it.roundToInt() },
+                        onValueChange = { bottomScrimPercent = (it / 10f).roundToInt() * 10 },
                         onReset = { bottomScrimPercent = 0 }
                     )
                 }
@@ -1006,7 +1146,7 @@ fun WallpaperStudioScreen(
                             valueLabel = String.format(Locale.US, "%.1f Mbps", mbps),
                             value = bitRateProgress.toFloat(),
                             valueRange = 1f..40f,
-                            onValueChange = { bitRateProgress = it.roundToInt() },
+                            onValueChange = { bitRateProgress = ((it / 10f).roundToInt() * 10).coerceAtLeast(1) },
                             onReset = { bitRateProgress = 20 }
                         )
                     }
@@ -1590,13 +1730,13 @@ private fun CurveEditorSheetContent(
                     CompactControlSlider(
                         label = "X1",
                         value = x1,
-                        onValueChange = { onCustomChange(it, y1, x2, y2) },
+                        onValueChange = { onCustomChange((it * 10f).roundToInt() / 10f, y1, x2, y2) },
                         modifier = Modifier.weight(1f)
                     )
                     CompactControlSlider(
                         label = "Y1",
                         value = y1,
-                        onValueChange = { onCustomChange(x1, it, x2, y2) },
+                        onValueChange = { onCustomChange(x1, (it * 10f).roundToInt() / 10f, x2, y2) },
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -1608,13 +1748,13 @@ private fun CurveEditorSheetContent(
                     CompactControlSlider(
                         label = "X2",
                         value = x2,
-                        onValueChange = { onCustomChange(x1, y1, it, y2) },
+                        onValueChange = { onCustomChange(x1, y1, (it * 10f).roundToInt() / 10f, y2) },
                         modifier = Modifier.weight(1f)
                     )
                     CompactControlSlider(
                         label = "Y2",
                         value = y2,
-                        onValueChange = { onCustomChange(x1, y1, x2, it) },
+                        onValueChange = { onCustomChange(x1, y1, x2, (it * 10f).roundToInt() / 10f) },
                         modifier = Modifier.weight(1f)
                     )
                 }

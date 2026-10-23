@@ -25,7 +25,7 @@
   - `AppUtils.kt` — Screen metrics, `PrefsStore`, `ToastUtils`, `FileUtils`, and `ImageUtils` (direct `File` decoding without legacy `MediaStore` `_data` hacks).
 - **`ui/`**
   - `MainActivity.kt` — ComponentActivity hosting the Compose UI, Android Photo Picker (`PickVisualMedia`), one-tap System Wallpaper importer (`WallpaperManager`), rotation, and video generation coroutine launcher.
-  - `WallpaperStudioScreen.kt` — Main Material 3 studio interface, interactive drag-to-pan phone preview card (`AnimatedWallpaperPreviewBox`), and the `ModalBottomSheet` **Animation Curve Studio** (`CurveEditorSheetContent`).
+  - `WallpaperStudioScreen.kt` — Main Material 3 studio interface, interactive drag-to-pan phone preview card (`AnimatedWallpaperPreviewBox`), **5 one-tap animation/effect presets** (`iOS Classic`, `Cinematic`, `Minimal`, `AMOLED Dream`, `Pulse Energy`), and the `ModalBottomSheet` **Animation Curve Studio** (`CurveEditorSheetContent`). All sliders snap to nearest 10 (and Bézier control points to 0.1) for consistent values.
   - `SettingsScreen.kt` — Dedicated Settings screen with **Appearance & Theme** (`System`, `Light`, `Dark`, `Pure AMOLED Black`), **Engine & Compatibility** toggles, **Reset All Parameters**, and **About / Developer (`@areyouanand`)**.
   - `theme/Theme.kt` — `ZoomyTheme` with Material You dynamic color and `#000000` AMOLED black override.
 
