@@ -22,13 +22,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -44,6 +49,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,6 +62,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.zoomy.wallpaper.BuildConfig
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.net.HttpURLConnection
+import java.net.URL
+import org.json.JSONObject
 import com.zoomy.wallpaper.util.ToastUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -69,6 +85,11 @@ fun SettingsScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var isCheckingUpdate by remember { mutableStateOf(false) }
+    var updateStatus by remember { mutableStateOf<String?>(null) }
+    var updateUrl by remember { mutableStateOf<String?>(null) }
+    var isUpdateAvailable by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -293,6 +314,103 @@ fun SettingsScreen(
                 }
             }
 
+            // 2.5 Check for Updates Section
+            ElevatedCard(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.elevatedCardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Default.SystemUpdate, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Text(
+                            text = "Updates",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    Text(
+                        text = "Current version: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    if (updateStatus != null) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isUpdateAvailable) Icons.Default.Update else Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = if (isUpdateAvailable) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = updateStatus!!,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (isUpdateAvailable) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        if (isUpdateAvailable && updateUrl != null) {
+                            OutlinedButton(
+                                onClick = {
+                                    try {
+                                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(updateUrl)))
+                                    } catch (_: Exception) { }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Default.SystemUpdate, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text("Download Update")
+                            }
+                        }
+                    }
+
+                    Button(
+                        onClick = {
+                            isCheckingUpdate = true
+                            updateStatus = null
+                            isUpdateAvailable = false
+                            updateUrl = null
+                            scope.launch {
+                                val result = withContext(Dispatchers.IO) {
+                                    checkForUpdate()
+                                }
+                                isCheckingUpdate = false
+                                updateStatus = result.first
+                                isUpdateAvailable = result.second
+                                updateUrl = result.third
+                            }
+                        },
+                        enabled = !isCheckingUpdate,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        if (isCheckingUpdate) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("Checking...")
+                        } else {
+                            Icon(Icons.Default.SystemUpdate, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Check for Updates")
+                        }
+                    }
+                }
+            }
+
             // 3. About & Developer Section (@areyouanand)
             ElevatedCard(
                 modifier = Modifier.fillMaxWidth(),
@@ -402,7 +520,7 @@ fun SettingsScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Text(
-                            text = "100% offline • Zero internet permissions • Zero telemetry or trackers",
+                            text = "No telemetry or trackers • Internet used only for optional update checks",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -431,4 +549,51 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
+}
+
+private fun checkForUpdate(): Triple<String, Boolean, String?> {
+    return try {
+        val url = URL("https://api.github.com/repos/areyouanand/zoomy-wallpaper/releases/latest")
+        val conn = (url.openConnection() as HttpURLConnection).apply {
+            requestMethod = "GET"
+            connectTimeout = 10000
+            readTimeout = 10000
+            setRequestProperty("Accept", "application/vnd.github+json")
+            setRequestProperty("User-Agent", "ZoomyWallpaper/${BuildConfig.VERSION_NAME}")
+        }
+        val code = conn.responseCode
+        if (code != 200) {
+            return Triple("Could not check (HTTP $code)", false, null)
+        }
+        val text = conn.inputStream.bufferedReader().use { it.readText() }
+        conn.disconnect()
+        val json = JSONObject(text)
+        val tagName = json.optString("tag_name", "").trim() // e.g. "v1.1.0"
+        val htmlUrl = json.optString("html_url", "https://github.com/areyouanand/zoomy-wallpaper/releases")
+        val latest = tagName.removePrefix("v").removePrefix("V")
+        val current = BuildConfig.VERSION_NAME.removePrefix("v").removePrefix("V")
+        if (latest.isBlank()) {
+            return Triple("No release info found", false, null)
+        }
+        val isNewer = compareVersions(latest, current) > 0
+        if (isNewer) {
+            Triple("New version available: $tagName", true, htmlUrl)
+        } else {
+            Triple("You're on the latest version ($current)", false, null)
+        }
+    } catch (e: Exception) {
+        Triple("Update check failed: ${e.message ?: "network error"}", false, null)
+    }
+}
+
+private fun compareVersions(a: String, b: String): Int {
+    val pa = a.split(".").map { it.toIntOrNull() ?: 0 }
+    val pb = b.split(".").map { it.toIntOrNull() ?: 0 }
+    val n = maxOf(pa.size, pb.size)
+    for (i in 0 until n) {
+        val va = pa.getOrElse(i) { 0 }
+        val vb = pb.getOrElse(i) { 0 }
+        if (va != vb) return va.compareTo(vb)
+    }
+    return 0
 }

@@ -26,7 +26,8 @@
 - **`ui/`**
   - `MainActivity.kt` — ComponentActivity hosting the Compose UI, Android Photo Picker (`PickVisualMedia`), one-tap System Wallpaper importer (`WallpaperManager`), rotation, and video generation coroutine launcher.
   - `WallpaperStudioScreen.kt` — Main Material 3 studio interface, interactive drag-to-pan phone preview card (`AnimatedWallpaperPreviewBox`), **4 one-tap animation/effect presets** (`iOS Classic`, `Cinematic`, `Minimal`, `AMOLED Dream`), and the `ModalBottomSheet` **Animation Curve Studio** (`CurveEditorSheetContent`). All sliders snap to nearest 5 (and Bézier control points to 0.05) for consistent values.
-  - `SettingsScreen.kt` — Dedicated Settings screen with **Appearance & Theme** (`System`, `Light`, `Dark`, `Pure AMOLED Black`), **Engine & Compatibility** toggles, **Reset All Parameters**, and **About / Developer (`@areyouanand`)**.
+  - `SettingsScreen.kt` — Dedicated Settings screen with **Appearance & Theme** (`System`, `Light`, `Dark`, `Pure AMOLED Black`), **Engine & Compatibility** toggles, **Check for Updates** (queries the GitHub Releases API and compares against `BuildConfig.VERSION_NAME`), **Reset All Parameters**, and **About / Developer (`@areyouanand`)**. Adds `INTERNET` permission (used solely for optional update checks; no telemetry).
+  - `PresetManager.kt` (`util/`) — JSON-backed user preset store (`userPresets` key) with `save` (override-by-name), `rename`, `delete`, `loadAll`, and `find`.
   - `theme/Theme.kt` — `ZoomyTheme` with Material You dynamic color and `#000000` AMOLED black override.
 
 ---

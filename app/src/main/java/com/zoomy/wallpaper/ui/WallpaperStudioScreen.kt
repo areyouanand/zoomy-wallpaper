@@ -33,7 +33,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.RotateRight
 import androidx.compose.material.icons.automirrored.filled.ShowChart
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DriveFileRenameOutline
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.Image
@@ -59,6 +63,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -105,7 +110,9 @@ import com.zoomy.wallpaper.encoder.WallpaperVideoGenerator
 import com.zoomy.wallpaper.model.BezierControlPoints
 import com.zoomy.wallpaper.model.WallpaperPreferences
 import com.zoomy.wallpaper.util.StackBlurEngine
+import com.zoomy.wallpaper.util.PresetManager
 import com.zoomy.wallpaper.util.ToastUtils
+import org.json.JSONObject
 import kotlinx.coroutines.launch
 import java.util.Locale
 import kotlin.math.max
@@ -136,6 +143,14 @@ fun WallpaperStudioScreen(
     val coroutineScope = rememberCoroutineScope()
 
     var showSettingsPage by remember { mutableStateOf(false) }
+
+    // User-saved presets
+    var userPresets by remember { mutableStateOf(PresetManager.loadAll()) }
+    var showSavePresetDialog by remember { mutableStateOf(false) }
+    var presetNameInput by remember { mutableStateOf("") }
+    var selectedUserPreset by remember { mutableStateOf<String?>(null) }
+    var showRenamePresetDialog by remember { mutableStateOf(false) }
+    var renamePresetInput by remember { mutableStateOf("") }
 
     var curveType by remember { mutableIntStateOf(prefs.getCurveType()) }
     var customX1 by remember { mutableFloatStateOf(prefs.getBezierControlPoints().x1) }
@@ -247,6 +262,65 @@ fun WallpaperStudioScreen(
         debounceVisibility = prefs.isDebounceVisibility()
         panX = prefs.getPanX()
         panY = prefs.getPanY()
+    }
+
+    fun applyUserPreset(json: JSONObject) {
+        curveType = json.optInt("curveType", curveType)
+        zoomMode = json.optInt("zoomMode", zoomMode)
+        fps = json.optDouble("fps", fps.toDouble()).toFloat()
+        addFps = json.optInt("addFps", addFps)
+        encodeMode = json.optInt("encodeMode", encodeMode)
+        scalePercent = json.optInt("scalePercent", scalePercent)
+        blurTimePercent = json.optInt("blurTimePercent", blurTimePercent)
+        startBlur = json.optInt("startBlur", startBlur)
+        endBlur = json.optInt("endBlur", endBlur)
+        startDimPercent = json.optInt("startDimPercent", startDimPercent)
+        endDimPercent = json.optInt("endDimPercent", endDimPercent)
+        colorBloomPercent = json.optInt("colorBloomPercent", colorBloomPercent)
+        parallaxPercent = json.optInt("parallaxPercent", parallaxPercent)
+        depthZoomEnabled = json.optBoolean("depthZoomEnabled", depthZoomEnabled)
+        delayTimeMs = json.optInt("delayTimeMs", delayTimeMs)
+        triggerMode = json.optInt("triggerMode", triggerMode)
+        topScrimPercent = json.optInt("topScrimPercent", topScrimPercent)
+        bottomScrimPercent = json.optInt("bottomScrimPercent", bottomScrimPercent)
+        darkModeExtraDimPercent = json.optInt("darkModeExtraDimPercent", darkModeExtraDimPercent)
+        bitRateProgress = json.optInt("bitRateProgress", bitRateProgress)
+        customX1 = json.optDouble("customX1", customX1.toDouble()).toFloat()
+        customY1 = json.optDouble("customY1", customY1.toDouble()).toFloat()
+        customX2 = json.optDouble("customX2", customX2.toDouble()).toFloat()
+        customY2 = json.optDouble("customY2", customY2.toDouble()).toFloat()
+        engineMode = json.optInt("engineMode", engineMode)
+    }
+
+    fun currentPresetJson(name: String): JSONObject {
+        return JSONObject().apply {
+            put("name", name)
+            put("curveType", curveType)
+            put("zoomMode", zoomMode)
+            put("fps", fps.toDouble())
+            put("addFps", addFps)
+            put("encodeMode", encodeMode)
+            put("scalePercent", scalePercent)
+            put("blurTimePercent", blurTimePercent)
+            put("startBlur", startBlur)
+            put("endBlur", endBlur)
+            put("startDimPercent", startDimPercent)
+            put("endDimPercent", endDimPercent)
+            put("colorBloomPercent", colorBloomPercent)
+            put("parallaxPercent", parallaxPercent)
+            put("depthZoomEnabled", depthZoomEnabled)
+            put("delayTimeMs", delayTimeMs)
+            put("triggerMode", triggerMode)
+            put("topScrimPercent", topScrimPercent)
+            put("bottomScrimPercent", bottomScrimPercent)
+            put("darkModeExtraDimPercent", darkModeExtraDimPercent)
+            put("bitRateProgress", bitRateProgress)
+            put("customX1", customX1.toDouble())
+            put("customY1", customY1.toDouble())
+            put("customX2", customX2.toDouble())
+            put("customY2", customY2.toDouble())
+            put("engineMode", engineMode)
+        }
     }
 
     if (showSettingsPage) {
@@ -734,14 +808,90 @@ fun WallpaperStudioScreen(
                     ) {
                         presets.forEach { (name, apply) ->
                             FilterChip(
-                                selected = false,
+                                selected = selectedUserPreset == null && false,
                                 onClick = {
                                     apply()
                                     saveAllPreferences()
+                                    selectedUserPreset = null
                                     ToastUtils.showShort("Preset applied: $name")
                                 },
                                 label = { Text(name) }
                             )
+                        }
+                        userPresets.forEach { json ->
+                            val name = json.optString("name")
+                            FilterChip(
+                                selected = selectedUserPreset == name,
+                                onClick = {
+                                    applyUserPreset(json)
+                                    saveAllPreferences()
+                                    selectedUserPreset = name
+                                    ToastUtils.showShort("Preset applied: $name")
+                                },
+                                label = { Text(name) }
+                            )
+                        }
+                    }
+
+                    // Management row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                presetNameInput = ""
+                                showSavePresetDialog = true
+                            },
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Save Current", style = MaterialTheme.typography.labelMedium)
+                        }
+                        if (selectedUserPreset != null) {
+                            OutlinedButton(
+                                onClick = {
+                                    val json = PresetManager.find(selectedUserPreset!!)
+                                    if (json != null) {
+                                        applyUserPreset(json)
+                                    }
+                                    // Override with current settings
+                                    PresetManager.save(selectedUserPreset!!, currentPresetJson(selectedUserPreset!!))
+                                    userPresets = PresetManager.loadAll()
+                                    ToastUtils.showShort("Preset updated: $selectedUserPreset")
+                                },
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("Override", style = MaterialTheme.typography.labelMedium)
+                            }
+                            OutlinedButton(
+                                onClick = {
+                                    renamePresetInput = selectedUserPreset!!
+                                    showRenamePresetDialog = true
+                                },
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Icon(Icons.Default.DriveFileRenameOutline, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("Rename", style = MaterialTheme.typography.labelMedium)
+                            }
+                            OutlinedButton(
+                                onClick = {
+                                    PresetManager.delete(selectedUserPreset!!)
+                                    userPresets = PresetManager.loadAll()
+                                    selectedUserPreset = null
+                                    ToastUtils.showShort("Preset deleted")
+                                },
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("Delete", style = MaterialTheme.typography.labelMedium)
+                            }
                         }
                     }
                 }
@@ -1175,6 +1325,75 @@ fun WallpaperStudioScreen(
                 onDone = { showCurveSheet = false }
             )
         }
+    }
+
+    if (showSavePresetDialog) {
+        AlertDialog(
+            onDismissRequest = { showSavePresetDialog = false },
+            title = { Text("Save Preset") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Enter a name for the current settings bundle.")
+                    OutlinedTextField(
+                        value = presetNameInput,
+                        onValueChange = { presetNameInput = it },
+                        singleLine = true,
+                        label = { Text("Preset name") }
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val name = presetNameInput.trim()
+                    if (name.isNotBlank()) {
+                        PresetManager.save(name, currentPresetJson(name))
+                        userPresets = PresetManager.loadAll()
+                        selectedUserPreset = name
+                        showSavePresetDialog = false
+                        ToastUtils.showShort("Preset saved: $name")
+                    }
+                }) { Text("Save") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSavePresetDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
+
+    if (showRenamePresetDialog) {
+        AlertDialog(
+            onDismissRequest = { showRenamePresetDialog = false },
+            title = { Text("Rename Preset") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = renamePresetInput,
+                        onValueChange = { renamePresetInput = it },
+                        singleLine = true,
+                        label = { Text("New name") }
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val newName = renamePresetInput.trim()
+                    val old = selectedUserPreset
+                    if (old != null && newName.isNotBlank()) {
+                        if (PresetManager.rename(old, newName)) {
+                            userPresets = PresetManager.loadAll()
+                            selectedUserPreset = newName
+                            showRenamePresetDialog = false
+                            ToastUtils.showShort("Renamed to $newName")
+                        } else {
+                            ToastUtils.showShort("Name already taken or invalid")
+                        }
+                    }
+                }) { Text("Rename") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRenamePresetDialog = false }) { Text("Cancel") }
+            }
+        )
     }
 
     if (isGenerating) {
